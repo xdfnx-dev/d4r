@@ -6,7 +6,8 @@ D3D12, OptiScaler, ZLUDA and HIP. The target models are **DLSS 4 preset K**
 and **DLSS 4.5 preset M**. The runtime runs directly on Windows 11.
 
 **Status: development / prerelease.** K and M run on the tested RX 9070 XT,
-including 4K in Silent Hill 2. Improving K performance is the current priority.
+including 4K gameplay in Silent Hill 2 and Cyberpunk 2077. Improving K
+performance is the current priority.
 Experimental builds cover RDNA3 `gfx1100..gfx1103`, RDNA3.5 `gfx1150..gfx1154`
 and RDNA4 `gfx1200/gfx1201`. Only RX 9070 XT has physical validation here;
 all other targets are compile-tested and their K/M/interop remain unverified.
@@ -86,13 +87,18 @@ DLL requirements and restoration details.
 | M transformer | All 5 native layers, 40 temporal captures, exact baseline |
 | Async K | Queued frames and Release/CreateFeature match synchronous RGB exactly |
 | Silent Hill 2 / K / 4K | 16,941 frames checked for NaN/Inf, 203,292 native launches, 0 backend errors |
+| Cyberpunk 2077 2.31 / K / 4K | 13,145 session frames checked, all 11 required native layers, 0 backend errors |
+| Cyberpunk 2077 2.31 / M / 4K | 5,268 session frames checked, all 5 required native layers, 0 backend errors |
 | Windows hardware/software tests | All 20 CTest gates pass on the RX 9070 XT |
 | Experimental GPU builds | All 11 targets compile, 209 device objects have correct ELF targets; other GPUs unverified |
 | Package preflight | Wrong target and vkd3d rejected before game changes; isolated install/restore passes |
 
 Exact comparisons refer to this project's validated reference/control
 implementations. Comparison with DLSS on a physical RTX has not been performed.
-Testing one game does not establish compatibility with every D3D12 game.
+Cyberpunk sessions include menus, loading and saved gameplay; output checks
+found no NaN/Inf, previous-frame fallback or CPU image copies. Its synchronous
+diagnostic configuration is separate from the performance capture below.
+This coverage does not establish compatibility with every D3D12 game.
 
 ## Performance and limitations
 
