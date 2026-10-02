@@ -56,7 +56,7 @@ DLL requirements and restoration details.
 | M transformer | All 5 native layers, 40 temporal captures, exact baseline |
 | Async K | Queued frames and Release/CreateFeature match synchronous RGB exactly |
 | Silent Hill 2 / K / 4K | 16,941 frames checked for NaN/Inf, 203,292 native launches, 0 backend errors |
-| Windows hardware tests | All 16 CTest gates pass |
+| Windows hardware/software tests | All 17 CTest gates pass |
 
 Exact comparisons refer to this project's validated reference/control
 implementations. Comparison with DLSS on a physical RTX has not been performed.
@@ -64,14 +64,18 @@ Testing one game does not establish compatibility with every D3D12 game.
 
 ## Performance and limitations
 
-In the local 4K scene, the user reports approximately **62 FPS / 63% GPU** with
-async interop, compared with **49–51 FPS / 53%** in the earlier synchronous run.
-These measurements also use locally built and validated K output-store kernels.
+The latest 30-second capture of the local 4K scene records **64.661 FPS**.
+AMD ADLX reports **93.183% mean GPU utilization**, rather than the earlier
+63% Task Manager reading. This run uses async interop, batched GPU inputs and
+locally built and validated K output-store kernels, with detailed profiling off.
 Those objects contain NVIDIA-derived code and are excluded from the public ZIP.
 Local build and validation commands are in
 [docs/windows-performance.md](docs/windows-performance.md).
 
-K performance remains under development. These readings are not a controlled
+Shared V tiles now reduce enc0's isolated replay time by about 5%, with exact
+outputs; this does not mean 5% game FPS. Private WGP output kernels are a
+separately validated experiment. Their game performance remains to be measured.
+K performance remains under development. The capture is not a controlled
 FSR4 comparison. `-AsyncInterop` is opt-in and requires one D3D12 command queue.
 Feature release and resource reconfiguration wait for GPU consumers to finish;
 ordinary frame submission does not hold the CUDA mutex.
