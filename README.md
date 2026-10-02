@@ -1,12 +1,16 @@
 # d4r for Windows / RDNA4
 
 A Windows fork of [countervolts/d4r](https://github.com/countervolts/d4r) that
-runs DLSS Super Resolution on **AMD Radeon RX 9070 XT / gfx1201** through
+runs DLSS Super Resolution on **AMD RDNA4** through
 D3D12, OptiScaler, ZLUDA and HIP. The target models are **DLSS 4 preset K**
 and **DLSS 4.5 preset M**. The runtime runs directly on Windows 11.
 
 **Status: development / prerelease.** K and M run on the tested RX 9070 XT,
 including 4K in Silent Hill 2. Improving K performance is the current priority.
+Builds accept gfx1201 (for example RX 9070/9070 XT) and gfx1200 (RX 9060/9060 XT).
+Only the RX 9070 XT has physical validation; gfx1200 is compile-tested only.
+Use a separate package for the GPU's actual target. See
+[GPU coverage and build commands](docs/windows-gpu-support.md).
 
 ## Download and run
 
@@ -17,6 +21,8 @@ Windows shim, patched ZLUDA, isolated HIP runtime, patched OptiScaler,
 You need Windows 11 x64, an RX 9070 XT and a D3D12 game without anti-cheat.
 The tested AMD driver is `32.0.31041.1004`. Other GPUs and drivers have not
 received the same validation.
+The previously published prerelease targets gfx1201. Experimental gfx1200
+packages can be built from source using the target-specific instructions above.
 
 Supply your own local `_nvngx.dll` and `nvngx_dlss.dll`. The tested pair is
 NGX `32.0.16.1714` and DLSS `310.9.1.0`. The native manifest checks the
@@ -56,7 +62,8 @@ DLL requirements and restoration details.
 | M transformer | All 5 native layers, 40 temporal captures, exact baseline |
 | Async K | Queued frames and Release/CreateFeature match synchronous RGB exactly |
 | Silent Hill 2 / K / 4K | 16,941 frames checked for NaN/Inf, 203,292 native launches, 0 backend errors |
-| Windows hardware/software tests | All 17 CTest gates pass |
+| Windows hardware/software tests | All 20 CTest gates pass on the RX 9070 XT |
+| gfx1200 build | All 19 device objects compile; four software-only gates pass; hardware unverified |
 
 Exact comparisons refer to this project's validated reference/control
 implementations. Comparison with DLSS on a physical RTX has not been performed.
@@ -118,6 +125,9 @@ After preparing the dependencies, run from the repository root:
 
 Creating a distributable ZIP requires committed source. The package includes
 a hash manifest, dependency licenses, source patches and a snapshot of that commit.
+`-GpuArch gfx1200` selects the other RDNA4 target; the corresponding CMake
+option is `-DD4R_GPU_ARCH=gfx1200`. Staging and installation reject mismatched
+code objects. The existing gfx1201 arithmetic and kernels are preserved.
 
 ## Tests and diagnostics
 
