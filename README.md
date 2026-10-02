@@ -64,8 +64,8 @@ Testing one game does not establish compatibility with every D3D12 game.
 
 ## Performance and limitations
 
-The latest 30-second capture of the local 4K scene records **64.661 FPS**.
-AMD ADLX reports **93.183% mean GPU utilization**, rather than the earlier
+The latest 30-second capture of the local 4K scene records **65.250 FPS**.
+AMD ADLX reports **93.500% mean GPU utilization**, rather than the earlier
 63% Task Manager reading. This run uses async interop, batched GPU inputs and
 locally built and validated K output-store kernels, with detailed profiling off.
 Those objects contain NVIDIA-derived code and are excluded from the public ZIP.
@@ -73,8 +73,12 @@ Local build and validation commands are in
 [docs/windows-performance.md](docs/windows-performance.md).
 
 Shared V tiles now reduce enc0's isolated replay time by about 5%, with exact
-outputs; this does not mean 5% game FPS. Private WGP output kernels are a
-separately validated experiment. Their game performance remains to be measured.
+outputs; this does not mean 5% game FPS. This capture includes that enc0 and
+private WGP output kernels. The preceding scene capture was 64.661 FPS;
+the small single comparison does not establish a reproducible gain. WGP
+remains an optional experiment. Its ten-minute game check completes 35,664
+frames with zero backend errors, CPU image copies or previous-frame outputs;
+output scans are disabled in that performance run.
 K performance remains under development. The capture is not a controlled
 FSR4 comparison. `-AsyncInterop` is opt-in and requires one D3D12 command queue.
 Feature release and resource reconfiguration wait for GPU consumers to finish;
