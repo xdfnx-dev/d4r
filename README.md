@@ -10,10 +10,25 @@ including 4K in Silent Hill 2. Improving K performance is the current priority.
 Experimental builds cover RDNA3 `gfx1100..gfx1103`, RDNA3.5 `gfx1150..gfx1154`
 and RDNA4 `gfx1200/gfx1201`. Only RX 9070 XT has physical validation here;
 all other targets are compile-tested and their K/M/interop remain unverified.
-Use a separate package for the GPU's actual target. See
+The quick-test ZIP selects the actual GPU target automatically. Developer
+packages remain target-specific. See
 [GPU coverage and build commands](docs/windows-gpu-support.md).
 
 ## Download and run
+
+For the shortest test, download **d4r-windows-quick-test.zip** from the
+[latest prereleases](https://github.com/xdfnx-dev/d4r/releases), extract the
+whole ZIP and double-click **START-K.cmd**. File pickers ask for the game EXE
+and your two original NVIDIA DLLs once. **START-M.cmd** tests M and
+**RESTORE-GAME.cmd** restores the original game files. Send the single ZIP
+printed after exiting the game, plus GPU/game/preset and the visual result.
+The isolated HIP runtime is included; no SDK install or source editing is
+needed. Read the [short instructions](docs/windows-quick-test.txt).
+This diagnostic uses conservative synchronous interop, output checks and crash
+capture; it is not an FPS benchmark. Corresponding sources are a separate
+release download, unnecessary for testing.
+
+The commands below apply to the separate developer packages.
 
 [Prebuilt releases](https://github.com/xdfnx-dev/d4r/releases) include the
 Windows shim, patched ZLUDA, isolated HIP runtime, patched OptiScaler,
