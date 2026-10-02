@@ -24,8 +24,9 @@ and your two original NVIDIA DLLs once. **START-M.cmd** tests M and
 printed after exiting the game, plus GPU/game/preset and the visual result.
 The isolated HIP runtime is included; no SDK install or source editing is
 needed. Read the [short instructions](docs/windows-quick-test.txt).
-This diagnostic uses conservative synchronous interop, output checks and crash
-capture; it is not an FPS benchmark. Corresponding sources are a separate
+This diagnostic uses conservative synchronous interop and output checks;
+it launches without an attached debugger and logs process exit codes. It is
+not an FPS benchmark. Corresponding sources are a separate
 release download, unnecessary for testing.
 
 The commands below apply to the separate developer packages.
@@ -61,8 +62,9 @@ K; `-Preset 13` selects M. Start M testing without `-AsyncInterop`: the async
 path is currently being tested primarily with K. The first launch may take
 time to compile PTX; subsequent launches reuse the cache.
 
-For an untested target, begin without `-AsyncInterop` and add `-ValidateOutput`
-and `-CaptureExceptions`. The script installs `dxgi.dll`, an OptiScaler configuration and a `d4r`
+For an untested target, begin without `-AsyncInterop` and add `-ValidateOutput`.
+`-CaptureExceptions` attaches a debugger; use it only for an explicit developer
+diagnostic when the game allows debugging. The script installs `dxgi.dll`, an OptiScaler configuration and a `d4r`
 directory beside the game EXE, backing up replaced files first. The current
 frame's inputs and output stay in VRAM. Restore the original files with:
 
