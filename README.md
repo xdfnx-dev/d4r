@@ -9,8 +9,10 @@ and **DLSS 4.5 preset M**. The runtime runs directly on Windows 11.
 including 4K gameplay in Silent Hill 2 and Cyberpunk 2077. Improving K
 performance is the current priority.
 Experimental builds cover RDNA3 `gfx1100..gfx1103`, RDNA3.5 `gfx1150..gfx1154`
-and RDNA4 `gfx1200/gfx1201`. Only RX 9070 XT has physical validation here;
-all other targets are compile-tested and their K/M/interop remain unverified.
+and RDNA4 `gfx1200/gfx1201`. Only RX 9070 XT has physical validation here.
+Community RX 9060 XT logs now confirm native K/M execution with finite output
+in Cyberpunk and Dawnwalker, but visual issues are reported and remain open.
+Other targets are compile-tested; their K/M/interop remain unverified.
 The quick-test ZIP selects the actual GPU target automatically. Developer
 packages remain target-specific. See
 [GPU coverage and build commands](docs/windows-gpu-support.md).
@@ -29,6 +31,9 @@ This diagnostic uses conservative synchronous interop and output checks;
 it launches without an attached debugger and logs process exit codes. It is
 not an FPS benchmark. Corresponding sources are a separate
 release download, unnecessary for testing.
+Distributor packages may include the validated DLL pair and select it
+automatically. The current xdfnx-dev public ZIP still asks for local files;
+packaging support does not establish NVIDIA redistribution permission.
 
 The commands below apply to the separate developer packages.
 
@@ -89,6 +94,7 @@ DLL requirements and restoration details.
 | Silent Hill 2 / K / 4K | 16,941 frames checked for NaN/Inf, 203,292 native launches, 0 backend errors |
 | Cyberpunk 2077 2.31 / K / 4K | 13,145 session frames checked, all 11 required native layers, 0 backend errors |
 | Cyberpunk 2077 2.31 / M / 4K | 5,268 session frames checked, all 5 required native layers, 0 backend errors |
+| Community RX 9060 XT / gfx1200 | Cyberpunk and Dawnwalker K/M backend checks pass; image correctness remains open |
 | Windows hardware/software tests | All 20 CTest gates pass on the RX 9070 XT |
 | Experimental GPU builds | All 11 targets compile, 209 device objects have correct ELF targets; other GPUs unverified |
 | Package preflight | Wrong target and vkd3d rejected before game changes; isolated install/restore passes |

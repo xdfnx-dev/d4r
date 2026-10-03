@@ -19,6 +19,51 @@ explicit limits; the validated package keeps conservative arithmetic.
 
 ## Milestone and gates
 
+2026-10-03 community retest ([comment 5962444244](https://github.com/countervolts/d4r/issues/10#issuecomment-5962444244)):
+seven new diagnostic bundles are read without running their contents. On
+RX 9060 XT / gfx1200, Cyberpunk K/M complete **4365 / 1751** frames and
+Dawnwalker K/M complete **6713 / 1690**. Each frame has a finite-output GPU
+check; all required native transformer layers execute, exit codes are zero,
+and backend failures / previous-frame output / CPU image-copy counters are
+zero. These sessions use HDR input/output helpers; the local Cyberpunk tests
+below used LDR. This establishes additional community backend execution,
+not numerical or visual equivalence. The tester reports texture/LOD and motion
+artifacts, which remain an explicit correctness gate before performance work.
+Do not claim that NaN/Inf scans establish image correctness.
+
+Mean recorded `interop_ngx_ms` is 18.623 / 50.237 ms for Cyberpunk K/M and
+8.126 / 32.632 ms for Dawnwalker K/M. These are CPU completion intervals in
+the synchronous diagnostic, including scheduling and validation, not isolated
+GPU kernel times or a controlled cross-game/preset benchmark. K performance
+remains open. Extracted logs, original ZIP hashes and parsed reports stay local
+under `build/issue-10-latest/`; personal user paths are not committed.
+
+The new Spider-Man 2 log exits `0xc0000005` before a DLSS frame, without a
+usable crash stack. Assassin's Creed's process exits zero with no DLSS frames,
+but Streamline reports repeated internal minidumps before capability discovery;
+it remains inconclusive. Neither report establishes a native WMMA failure.
+[The Witcher 3 report](https://github.com/countervolts/d4r/issues/10#issuecomment-5962808629)
+selects the wrong original NGX core and is rejected before installation, rather
+than failing a GPU workload. Launcher/Streamline crash diagnosis remains open.
+
+Distributor-supplied NVIDIA DLL support: quick-test packaging accepts optional
+`-NvidiaDirectory <directory>` and `-NvidiaLicensePath <applicable-license>`.
+It stages the exact validated originals under `files/nvidia/`, adds both DLLs
+and the separate license to integrity metadata and selects them automatically.
+Explicit developer overrides still have strict SHA256 checks; bundled files
+take precedence over stale remembered file selections. Restore remains
+independent of DLL/GPU selection. This option is for local testing or a
+distributor with appropriate permission; matching hashes are not a grant of
+redistribution rights. The current public xdfnx-dev release remains unchanged
+and contains no NVIDIA runtime binaries or private NVIDIA-derived kernels.
+The [current NVIDIA SDK license](https://github.com/NVIDIA/DLSS/blob/main/LICENSE.txt)
+has distribution conditions and a supplement limiting DLSS/NGX development
+to systems with NVIDIA GPUs; the Linux bundle's contents alone do not resolve
+permission for this Windows package. A local-only bundled package with the
+user-provided pair passes eight isolated installer/restore/negative fixtures,
+including stale-choice recovery and altered bundled-core rejection before any
+game write. Real games are untouched by these fixture tests.
+
 2026-10-02 issue #10 follow-up ([comment 5958769640](https://github.com/countervolts/d4r/issues/10#issuecomment-5958769640)):
 four new logs confirm that RX 9060 XT / gfx1200 HIP discovery succeeds. The
 Cyberpunk K/M runs never launch the transformer: numeric CUDA NGX capabilities
