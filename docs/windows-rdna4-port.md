@@ -19,6 +19,20 @@ explicit limits; the validated package keeps conservative arithmetic.
 
 ## Milestone and gates
 
+2026-10-04 local artifact cleanup: the workspace shrank from 105.62 to
+24.25 GiB; 81.37 GiB of repeated frame dumps, obsolete archives, duplicated
+packages, installer drafts and extracted downloads were removed. Source
+checkouts, Git history, installed compiler/HIP tools, current releases and the
+private K A/B staging directory remain. Captured replay inputs (1.32 GiB),
+logs, numerical/timing summaries and validation JSON are retained. Redundant
+RGBA/BMP images and ordinary replay outputs from completed tests are removed;
+some historical package/output paths below now require regeneration.
+All original NVIDIA DLL hashes, every baseline/candidate package file, the
+private output objects/manifests and the A/B validation reports were checked
+after cleanup and remain unchanged. No real game files were touched. The
+before/plan/result/after inventory reports are local
+`build/cleanup-20261004-*.json`; cleanup made no runtime or default changes.
+
 2026-10-03 K performance checkpoint: work is local on
 `codex/k-performance-20261003`, with no experimental game installation,
 default change, release or push. The opt-in single shared-V-slot dec0 keeps
