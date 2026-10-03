@@ -89,7 +89,8 @@ Assassin's Creed exits with zero frames and Streamline logs repeated internal
 minidumps; its clean process exit is still inconclusive. Their causes remain
 open without a stack trace. The Witcher 3 log in
 [comment 5962808629](https://github.com/countervolts/d4r/issues/10#issuecomment-5962808629)
-selects an incorrect original NGX core, and the installer correctly refuses
+selects the gfx1200 d4r shim instead of the original NGX core (its SHA256
+matches the shipped shim exactly), and the installer correctly refuses
 before modifying the game. It does not establish a Witcher runtime failure.
 
 ## Build
