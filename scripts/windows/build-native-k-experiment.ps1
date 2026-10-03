@@ -3,13 +3,14 @@ param([ValidateSet('enc0','enc1','enc2','enc3','enc4','dec5','dec4','dec3','dec2
     [string]$Layer='enc1', [ValidateSet('source','cu','wgp')][string]$Mode='source',
     [ValidateSet('baseline','load','store','both')][string]$NonTemporal='baseline',
     [ValidateSet(0,1,2,4)][int]$PosTiles=0, [switch]$ShareValues, [switch]$PrivateValues,
-    [switch]$PackedAccumulator,
+    [switch]$PackedAccumulator, [switch]$ReuseSharedValues,
     [string]$HipRoot, [string]$OutputDirectory)
 $ErrorActionPreference='Stop'
 $repo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 if (!$HipRoot) { $HipRoot=Join-Path $repo '.tools/therock-10.2.0a20260929/_rocm_sdk_core' }
 if ($ShareValues -and $PrivateValues) { throw 'Choose shared or private V storage.' }
-if (!$OutputDirectory) { $OutputDirectory=Join-Path $repo "build/native-k-experiment-$Layer-$Mode-$NonTemporal-pos$PosTiles-share$([int][bool]$ShareValues)-private$([int][bool]$PrivateValues)-packed$([int][bool]$PackedAccumulator)" }
+if ($ReuseSharedValues -and !$ShareValues) { throw 'ReuseSharedValues requires explicit ShareValues.' }
+if (!$OutputDirectory) { $OutputDirectory=Join-Path $repo "build/native-k-experiment-$Layer-$Mode-$NonTemporal-pos$PosTiles-share$([int][bool]$ShareValues)-private$([int][bool]$PrivateValues)-packed$([int][bool]$PackedAccumulator)-reuse$([int][bool]$ReuseSharedValues)" }
 $OutputDirectory=[IO.Path]::GetFullPath($OutputDirectory)
 foreach ($baseline in @('build/native-k-gfx1201','build/windows-rdna4-therock','dist/windows-rdna4-command-list')) {
     if ($OutputDirectory.StartsWith([IO.Path]::GetFullPath((Join-Path $repo $baseline)), [StringComparison]::OrdinalIgnoreCase)) {
@@ -39,6 +40,7 @@ if ($ShareValues) {
     $flags+='-DPOS_VSHARE'
 }
 if ($PackedAccumulator) { $flags+='-DD4R_K_PACKED_ACC' }
+if ($ReuseSharedValues) { $flags+='-DD4R_K_VSHARE_REUSE' }
 if ($PrivateValues) { $flags+='-DD4R_K_PRIVATE_V' }
 New-Item -ItemType Directory -Force $OutputDirectory | Out-Null
 $object=Join-Path $OutputDirectory "$name.hsaco"
@@ -59,6 +61,7 @@ if ($LASTEXITCODE) { throw 'Native object metadata extraction failed.' }
     mode=$Mode; nonTemporal=$NonTemporal; tokenTilesPerWave=$PosTiles; shareValues=[bool]$ShareValues;
     privateValues=[bool]$PrivateValues;
     packedAccumulator=[bool]$PackedAccumulator;
+    reuseSharedValues=[bool]$ReuseSharedValues;
     compiler=$compiler; arguments=$arguments;
     sourceCommit=(git -C $repo rev-parse HEAD); workingTreeDirty=[bool](& git -C $repo status --porcelain);
     compilerVersion=(& $compiler --version | Out-String).Trim();

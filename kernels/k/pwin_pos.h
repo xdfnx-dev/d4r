@@ -2,6 +2,11 @@
 // weight operand loaded from L2 is used MT times (4 / MT waves per window). Same math as pwin_core.
 #pragma once
 #include "pwin_layer.h"
+#ifdef D4R_K_VSHARE_REUSE
+#if !defined(POS_VSHARE) || !defined(__GFX12__) || !defined(D4R_K_FP16_BASELINE)
+#error "experimental shared V reuse requires gfx12 strict baseline and POS_VSHARE"
+#endif
+#endif
 
 template <class L, int MT>
 __device__ void pos_core(const PwinParams& p, const u8v* __restrict__ img, const u4v* __restrict__ bias,
@@ -52,13 +57,24 @@ __device__ void pos_core(const PwinParams& p, const u8v* __restrict__ img, const
     }
 #ifdef POS_VSHARE
     // V^T operands of every head: each wave computes those of its own key tiles, shared through LDS
-    // (one slot per head, so a head's slot is never rewritten while it is read)
-    __shared__ __attribute__((aligned(16))) u8v vsh[H][2][4][16];
+    // The baseline keeps one slot per head, avoiding a reuse barrier. The opt-in
+    // experiment uses one slot, with a block barrier before the next head writes.
+#ifdef D4R_K_VSHARE_REUSE
+    constexpr int VHEADS = 1;
+#else
+    constexpr int VHEADS = H;
+#endif
+    __shared__ __attribute__((aligned(16))) u8v vsh[VHEADS][2][4][16];
 #endif
     for (int h = 0; h < H; ++h)
     {
         op_t vtop[2][4];
 #ifdef POS_VSHARE
+#ifdef D4R_K_VSHARE_REUSE
+        const int vhead = 0;
+#else
+        const int vhead = h;
+#endif
 #pragma unroll
         for (int nt = 0; nt < 2; ++nt)
 #pragma unroll
@@ -69,14 +85,14 @@ __device__ void pos_core(const PwinParams& p, const u8v* __restrict__ img, const
 #pragma unroll
                 for (int ks = 0; ks < KT; ++ks)
                     d = mma16(op_lds(&hb[16 * kt + m][16 * ks]), op_img(img, (L::T_QKV + ((h * 3 + 2) * KT + ks) * 2 + nt) * 16 + m), d);
-                op_img_store(&vsh[h][nt][0][0], kt * 16 + m, operand_from_f8(d));
+                op_img_store(&vsh[vhead][nt][0][0], kt * 16 + m, operand_from_f8(d));
             }
         block_sync();
 #pragma unroll
         for (int nt = 0; nt < 2; ++nt)
 #pragma unroll
             for (int kt = 0; kt < 4; ++kt)
-                vtop[nt][kt] = op_img(&vsh[h][nt][0][0], kt * 16 + m);
+                vtop[nt][kt] = op_img(&vsh[vhead][nt][0][0], kt * 16 + m);
 #else
 #pragma unroll
         for (int nt = 0; nt < 2; ++nt)
@@ -119,6 +135,12 @@ __device__ void pos_core(const PwinParams& p, const u8v* __restrict__ img, const
                 for (int mi = 0; mi < MT; ++mi)
                     acc[mi][nt] = mma16(wo, oop[mi][ks], acc[mi][nt]);
             }
+#ifdef D4R_K_VSHARE_REUSE
+        // All waves finish reading this head before any wave overwrites the
+        // shared slot. h and H are block-uniform; the final slot is never reused.
+        if (h + 1 < H)
+            block_sync();
+#endif
     }
 
     STAMP(3);

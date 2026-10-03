@@ -1,5 +1,148 @@
 # Windows RDNA4 measurements
 
+## 2026-10-03: local K candidates, awaiting game A/B
+
+Work is isolated on `codex/k-performance-20261003`. No candidate has changed
+the default kernel selection, the game installation or the public release.
+All measurements below use the physical RX 9070 XT / gfx1201. M optimization
+remains deferred. Fewer registers alone do not establish a speed improvement.
+
+The local source rebuild and all 20 CTest gates pass (7.13 seconds). Fresh
+default enc0/enc1/dec0 code and constant sections match the validated package
+exactly (`default-position-audit/summary.json`). Rebuilding both maxocc output
+objects after making CU/WGP provenance explicit retains their validated
+SHA256 hashes. Build/test logs are `root-build.log` / `root-ctest.log` in the
+dated build directory. These gates do not replace the pending game A/B.
+
+The latest Silent Hill 2 profile completed 8724 finite K frames in its
+1200-second diagnostic window: no NaN/Inf, backend failure, previous-frame
+output or CPU image copy. The process ended at the configured diagnostic
+timeout, rather than crashing. Mean valid deferred GPU samples include output
+1.816 ms, dec0 0.361 ms, dec1 0.326 ms and enc0 0.272 ms. Invalid timestamps
+are retained and excluded. These whole-session samples include loading/menu
+frames and profiler overhead.
+
+The user's stationary scene capture has 1751 Present samples over about
+27.18 seconds, 64.425 FPS, and 56 driver telemetry samples averaging 92.41%
+GPU utilization, 3112 MHz and 318 W. It ended at the same diagnostic bound.
+Finite scans and deferred profiling were enabled, so this is not a clean FPS
+baseline. The logged input is 1920x1080, output 3840x2160; the earlier 65.25
+FPS session used 2259x1271 input. Do not infer a regression or gain across
+these different quality settings. Raw reports: `test-results/k-performance-20261003/`
+under `game-profile` and `game-profile-capture`.
+
+### Shared V storage
+
+`D4R_K_VSHARE_REUSE` is an opt-in gfx12 strict-FP16-baseline experiment in
+`pwin_pos.h`. It shares one V slot between attention heads, preserving
+packing, WMMA operations and half rounding. A block-uniform barrier protects
+the last read before the next head writes; the final head needs no reuse
+barrier. It requires `POS_VSHARE` and does not change gfx11 or default builds.
+
+Fresh control/candidate replays match every allocation byte-for-byte before
+timing. AB/BA pairs keep both modules resident, with 64 launches per sample;
+both HIP timing methods pass the host-completion cross-check.
+
+| Candidate | Valid pairs per method | Dispatch median, control/candidate ms | Median paired ratio, dispatch/events |
+| --- | ---: | ---: | ---: |
+| enc0 reuse | 32 | 0.323746 / 0.320061 | 0.988711 / 0.988993 |
+| enc0 reuse + WGP | 32 | 0.323682 / 0.332844 | 1.030480 / 1.031436 |
+| dec0 reuse | 32 | 0.364178 / 0.348252 | 0.956793 / 0.955619 |
+| dec0 reuse repeat | 64 | 0.363810 / 0.348436 | 0.960396 / 0.959271 |
+
+The repeat supports an approximately 4% isolated dec0 saving, about 0.015 ms;
+this is not a 4% application FPS gain. Dec0 uses 197 VGPRs and 12288 LDS
+bytes, with no spills. Enc0 uses 212 VGPRs and 12288 LDS bytes, versus the
+default shared-V object's 16384 bytes. Enc0's roughly 1% result is insufficient
+to promote, and its WGP combination is slower and rejected.
+
+Independent dec0 NumPy validation of twelve actual 4K windows passes:
+max absolute error 0.005859375, max relative error 0.874519 (denominator floor
+0.001), RMS 0.000189194 and PSNR 92.164 dB. Two selected actual windows pass
+the existing PTX-reference gate: max absolute errors 0.01171875 / 0.0078125,
+RMS 0.00152572 / 0.00128528, PSNR 73.895 / 73.786 dB. These reference differences
+also occur in the byte-identical control, including reciprocal/rsqrt lowering;
+they are not an introduced mismatch. The public small fixture passes 32
+launches with zero error over all 2560 logical elements. Results are in
+`dec0-reuse-4k`, `dec0-reuse-4k-repeat` and `dec0-public` beneath the dated
+results directory. A fresh default enc0 build retains identical `.text` and
+`.rodata` to the validated package (`enc0-default-audit/summary.json`).
+
+```powershell
+.\scripts\windows\build-native-k-experiment.ps1 -Layer dec0 -ShareValues -ReuseSharedValues -OutputDirectory "$PWD\build\k-performance-20261003\dec0-reuse"
+.\scripts\windows\benchmark-native-replay.ps1 -Module "$PWD\build\windows-gpu-coverage-native-k-gfx1201\dltss_pwin_dec0_layer.hsaco" -Candidate "$PWD\build\k-performance-20261003\dec0-reuse\dltss_pwin_dec0_layer.hsaco" -FixtureDirectory "$PWD\test-results\k-4k-dec0-capture\replay\replay-000001-dltss_pwin_dec0_layer" -Pairs 64 -Batches 64
+```
+
+### Strict output code generation
+
+`tools/windows/build_texture_codegen_experiment.py` uses the matching audited
+ZLUDA LLVM 22 `llc`, avoiding the recorded Clang 24 strict-library-selection
+failure. It changes only the selected kernel's code-generation attributes,
+gives it a separate attribute group and retains instruction bodies, strict FP,
+denormal behavior, wave32 and source CU/WGP mode. It checks the local DLSS
+identity and original object provenance, records compiler/input/output hashes
+and commands, and requires a new isolated output directory. Generated IR and
+objects contain NVIDIA-derived code and remain private. Scheduling/resource
+hints are described in the [LLVM AMDGPU guide](https://llvm.org/docs/AMDGPUUsage.html#llvm-ir-attributes).
+
+The no-hint recompilation passes exact full-frame control checks. The
+`iterative-maxocc` candidate reduces HDR/LDR VGPR counts from 133/128 to 107/107;
+the `amdgpu-num-vgpr=128` candidate uses 115/127. All retain 6912 LDS bytes and
+zero spills. Static resource counts are not measured occupancy.
+
+| Output variant | LDR mean GPU ms, control/candidate | HDR mean GPU ms, control/candidate |
+| --- | ---: | ---: |
+| iterative-maxocc | 1.760331 / 1.600213 | 1.881769 / 1.789070 |
+| max-vgpr 128, reverse process order | 1.721013 / 1.715859 | 1.870609 / 1.736908 |
+
+These are eight sparse, serializing samples per process at 1920x1080 input,
+3840x2160 output. Separate processes and different orders do not establish a
+paired steady-state improvement or identify a game winner. Both candidates
+remain local, pending repeat measurements and an unprofiled game A/B.
+
+The no-hint, maxocc and max-vgpr full-network tests, the combined dec0+maxocc
+test at 2259x1271 -> 3840x2160, and combined sync/async burst/recreation tests
+complete **124 finite control/candidate frames and 62 exact RGB-half image
+comparisons**. Every required K layer executes; there is no network fallback.
+RGB equivalence applies to the tested synthetic inputs and temporal sequences,
+not all possible game images. Alpha is scanned for finiteness, not compared
+numerically. Results: `output-recompiled-4k`, `output-maxocc-4k`,
+`output-vgpr128-4k`, `combined-game-input` and `combined-async`.
+
+```powershell
+# Build llc from the already audited LLVM 22 checkout; its host DLLs need this PATH.
+$env:PATH="$PWD\.tools\llvm-mingw-20260922-ucrt-x86_64\bin;$env:PATH"
+cmake --build build/zluda-llvm-windows-gnu --target llc --parallel 8
+python tools/windows/build_texture_codegen_experiment.py --source-directory build/private-textures-wgp-gfx1201 --llvm-bin build/zluda-llvm-windows-gnu/bin --hip-root "C:/Program Files/AMD/ROCm/7.2" --dlss-dll nvngx_dlss.dll --scheduler iterative-maxocc --output-directory build/k-output-maxocc-new
+.\scripts\windows\test-native-texture.ps1 -TextureRoot "$PWD\build\k-output-maxocc-new" -ControlTextureRoot "$PWD\build\private-textures-wgp-gfx1201" -ZludaRoot "$PWD\dist\zluda-windows-gpu-coverage" -PackageRoot "$PWD\dist\windows-gpu-coverage-gfx1201" -InputResolution 1920x1080 -OutputResolution 3840x2160 -Iterations 8
+```
+
+Next gate: load the same saved scene, use identical DLSS quality and input
+dimensions, disable output scans/profilers/debugger, warm the cache, then
+collect PresentMon/ADLX baseline and candidate captures without moving the
+camera. The prepared local A/B launcher uses the original shim/frontend/HIP/
+ZLUDA binaries and changes only the selected tested native objects. Its default
+is the control, and it imposes no timed game termination. No upstream push or
+default promotion occurs before this gate.
+
+The machine-local launcher is `build/k-performance-20261003/game-ab/launch.ps1`.
+It offers `Control`, `Dec0`, `Output` and `Combined`, defaults to preset K,
+shares the existing warm cache, and leaves game graphics settings unchanged.
+Six isolated install/restore/tamper fixtures pass, without touching the real
+game or running a GPU kernel (`game-ab-installer-fixtures/summary.json`).
+`experiment.json` records the validated objects and source hashes separately
+from the original binary provenance; it does not relabel the old shim as a new
+source build. This private staging directory is not a release artifact.
+
+```powershell
+# On this test machine, once available to load the saved scene:
+.\build\k-performance-20261003\game-ab\launch.ps1 -Variant Control
+# Close the game normally before the next variant:
+.\build\k-performance-20261003\game-ab\launch.ps1 -Variant Combined
+# Restore the game's original files when the comparison is finished:
+.\build\k-performance-20261003\game-ab\launch.ps1 -Action restore
+```
+
 Hardware: RX 9070 XT / gfx1201, Windows 11, display driver 32.0.31041.1004.
 Runtime: TheRock 10.2.0a20260929, HIP 7.17.26386; ZLUDA b0161a4 with
 `D4R_ZLUDA_WMMA=1`, FP8 widening, native FP8 disabled, f16 reference rounding.

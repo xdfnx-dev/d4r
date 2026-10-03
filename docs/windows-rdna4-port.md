@@ -19,6 +19,61 @@ explicit limits; the validated package keeps conservative arithmetic.
 
 ## Milestone and gates
 
+2026-10-03 K performance checkpoint: work is local on
+`codex/k-performance-20261003`, with no experimental game installation,
+default change, release or push. The opt-in single shared-V-slot dec0 keeps
+strict arithmetic and matches every replay allocation. Two paired 4K runs
+give approximately 4% isolated kernel improvement, about 0.015 ms; independent
+NumPy/PTX and public small-fixture gates pass. A matching LLVM 22 output
+codegen experiment preserves strict FP and reduces HDR/LDR VGPR use to 107/107
+without spills. Across output variants, the combined network and async/
+recreation tests, 124 control/candidate frames are finite and 62 RGB-half image
+comparisons are exact. Separate-process output timings are preliminary.
+An unprofiled, same-quality game A/B is required before choosing defaults or
+synchronizing these experiments. Full commands, errors, resource counts and
+measurement limitations are in `docs/windows-performance.md`; raw artifacts
+remain in `test-results/k-performance-20261003/` and `build/k-performance-20261003/`.
+The local source rebuild and 20/20 CTest gates pass. Fresh default enc0/enc1/
+dec0 code and constants remain identical to the validated package. A private
+four-variant game launcher is staged, with 6/6 isolated install/restore/tamper
+fixtures passing; it has not been used to modify the real game.
+
+The latest baseline game profile completes 8724 finite K frames with no
+backend failure, CPU image copy or previous-frame output. Its 20-minute
+diagnostic bound ends the process. The stationary capture is 64.425 FPS and
+92.41% driver-reported GPU utilization, with profiling/scans enabled and
+1920x1080 input. It cannot be compared as a clean FPS result against the
+earlier 2259x1271-input session. The GPU is busy according to ADLX; Task
+Manager's lower reading does not establish an unused-compute bottleneck.
+
+Upstream review: ayo's Windows commit
+[`fc98ee6`](https://github.com/countervolts/d4r/commit/fc98ee660714a38fdcf2eca39b2819ef0fa52e2e)
+disables the watermark by default, adds `d4r-check.ps1`, improves player
+logging, accepts the separately pinned 310.7.0 / NGX 32.0.15.9636 pair and
+supports architecture-subset packaging. The existing native PTX identity gate
+remains. The separate `build/upstream-windows` checkout is fast-forwarded to
+that exact commit and remains clean, with no edits to the author's sources.
+Its fresh CMake/Ninja build passes, as do 20/20 CTest gates, 2/2 player
+config/loader probes, 15/15 install-check fixtures and 4/4 packaging fixtures.
+The check fixtures pass as an external Windows PowerShell 5.1 process (exit 0);
+an initial in-process wrapper inherited a negative fixture's stale
+`LASTEXITCODE`, despite all assertions passing. No author source change was
+needed. Reports are under the dated `upstream-review` build directory and
+`upstream-fc98ee6-*` result directories. The additional NVIDIA pair and new
+drag-in frontend have not received our real-game test. The root experiment
+branch/public binaries are not relabeled as fc98ee6 builds.
+
+Linux review: [`f9d46cb`](https://github.com/countervolts/d4r/commit/f9d46cb64da52a279b66ff5327d7397dbe8ef725)
+fixes M enc3 weight caching when NGX reuses a weights address after feature
+recreation. The Windows kernel still has the address-keyed eight-slot policy;
+porting the two kernel changes needs a same-address/new-content regression
+and M recreation/image comparison, while retaining `SWIN_NO_Q8`. This is
+identified, not yet fixed locally. The Linux input-marker/completion changes
+depend on vkd3d split submissions and are not copied into the independent
+native D3D12 fence backend. The other Linux routing/INI commits do not replace
+the Windows loader. Synchronization will preserve authorship and follow the
+relevant tests, without overwriting the maintainer's branch work.
+
 2026-10-03 upstream Windows refresh: imported ayo's `e7e5c44` (LF patch
 attributes) and `54c201a` (drag-in installation / per-game `d4r.ini`) while
 preserving their authorship. The target-independent NGX loader selects the
