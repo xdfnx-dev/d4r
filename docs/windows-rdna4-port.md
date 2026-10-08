@@ -19,6 +19,30 @@ explicit limits; the validated package keeps conservative arithmetic.
 
 ## Milestone and gates
 
+2026-10-08 community report
+([comment 6046048139](https://github.com/countervolts/d4r/issues/10#issuecomment-6046048139)):
+both Assetto Corsa EVO K/M logs discover RX 9070 XT / gfx1201 through HIP and
+use the correct original NGX 32.0.16.1714 / DLSS 310.9.1 hashes. Both use the
+older `86037a1` package / `c959acc` binary, exit `0x1` with three
+`No selected gfx1201 device for this adapter` failures, and execute zero DLSS
+frames or native kernels. The failure is in DXGI/HIP adapter capability
+discovery, before transformer execution. The system also lists Virtual Desktop
+and several MS Idd devices; their involvement cannot be proven from this log,
+which predates the adapter-LUID diagnostics.
+
+The existing [`windows-quick-test-20261002-issue10` release](https://github.com/xdfnx-dev/d4r/releases/tag/windows-quick-test-20261002-issue10)
+contains `3d62b98` and the nonmatching-adapter capability fix, plus the earlier
+feature-DLL placement and launch fixes. Its exact released gfx1201 shim
+(SHA256 `e2079c9d3cc1cef4fa7d4e795536dad2568419548b852e6e7a7e5f2f0f8023ab`)
+passes a fresh read-only probe on the local RX 9070 XT: physical adapter
+returns success/supported, WARP returns success/AdapterUnsupported, without a
+backend failure. The runtime's strict architecture/LUID check is retained.
+No game or GPU kernel is run by this probe. Recommend restoring the old
+installation and testing K with the fixed runtime ZIP in a fresh directory;
+this does not establish Assetto Corsa EVO compatibility or warrant another
+release yet. Original attachments, parsed reports and the probe result stay
+local in `build/issue-10-6046048139/`. No maintainer source or release changed.
+
 2026-10-04 local artifact cleanup: the workspace shrank from 105.62 to
 24.25 GiB; 81.37 GiB of repeated frame dumps, obsolete archives, duplicated
 packages, installer drafts and extracted downloads were removed. Source
