@@ -8,16 +8,30 @@ $cases=@(
     @{name='feature-not-found'; stdout='D4R_CAPABILITIES available=0 feature_init=0xbad00004 needs_driver=0'; stderr='D4R_WINDOWS_FAILURE unavailable'; debugger='EXIT code=0xc0000409'; session='ngx-feature-not-found'},
     @{name='complete-frame'; stdout="D4R_FRAME cpu_frame_copies=0 frame_age=0 interop_ngx_ms=12.4`nD4R_OUTPUT_VALIDATION elements=3 nan=0 inf=0 diagnostics_cpu_bytes=8";
         stderr='[d4r-launch] kernel="dltss_pwin_enc0_layer" backend=native'; debugger='EXIT code=0x0'; session='completed-dlss-frames'},
-    @{name='truncated-frame'; stdout='D4R_FRAME cpu_frame_copies=0 frame_age=0 interop_ngx_ms='; stderr=''; debugger=''; session='diagnostic-timeout-without-dlss-frames'}
+    @{name='truncated-frame'; stdout='D4R_FRAME cpu_frame_copies=0 frame_age=0 interop_ngx_ms='; stderr=''; debugger=''; session='diagnostic-timeout-without-dlss-frames'},
+    @{name='different-game-process'; stdout=''; stderr=''; debugger="LAUNCH pid=18704 attached_debugger=0`nEXIT code=0x1";
+        frontend='OptiInput::InstallHooks installing Win32 input hooks currentPid:11084 targetPid:11084 inputPid:11084';
+        mismatch=$true; session='different-game-process-in-frontend-log'},
+    @{name='same-game-process-external-window'; stdout=''; stderr=''; debugger="LAUNCH pid=18704 attached_debugger=0`nEXIT code=0x0";
+        frontend='OptiInput::InstallHooks installing Win32 input hooks currentPid:18704 targetPid:11084 inputPid:11084';
+        mismatch=$false; session='process-exited-without-dlss-frames'},
+    @{name='frontend-without-launch-pid'; stdout=''; stderr=''; debugger='EXIT code=0x1';
+        frontend='OptiInput::InstallHooks installing Win32 input hooks currentPid:11084';
+        mismatch=$false; session='process-failed-before-dlss-frames'},
+    @{name='frames-with-foreign-frontend-log'; stdout='D4R_FRAME cpu_frame_copies=0 frame_age=0 interop_ngx_ms=12.4'; stderr='';
+        debugger="LAUNCH pid=18704 attached_debugger=0`nEXIT code=0x0";
+        frontend='OptiInput::InstallHooks installing Win32 input hooks currentPid:11084';
+        mismatch=$true; session='different-game-process-in-frontend-log'}
 )
 $results=@()
 foreach ($case in $cases) {
-    $summary=Get-D4RGameSummary -Stdout $case.stdout -Stderr $case.stderr -Debugger $case.debugger
+    $summary=Get-D4RGameSummary -Stdout $case.stdout -Stderr $case.stderr -Debugger $case.debugger -OptiScalerLog $case.frontend
     if ($summary.session -ne $case.session) { throw "Wrong session classification: $($case.name)" }
+    if ($case.ContainsKey('mismatch') -and $summary.frontendProcessMismatch -ne $case.mismatch) { throw "Wrong process identity classification: $($case.name)" }
     if ($case.name -eq 'complete-frame') {
         if ($summary.completedFrames -ne 1 -or $summary.outputGpuChecks -ne 1 -or $summary.nativeLaunches -ne 1 -or
             $summary.nonfiniteOutputs -or $summary.previousFrameOutputs -or $summary.cpuImageCopyFrames) { throw 'Complete frame counters are wrong.' }
-    } elseif ($summary.completedFrames -ne 0) { throw 'A failed or incomplete run was counted as a frame.' }
+    } elseif ($case.name -ne 'frames-with-foreign-frontend-log' -and $summary.completedFrames -ne 0) { throw 'A failed or incomplete run was counted as a frame.' }
     $results+=@{case=$case.name; passed=$true; summary=$summary}
 }
 if ($LogRoot) {

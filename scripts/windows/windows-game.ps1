@@ -309,7 +309,9 @@ try {
                 reason=[string]$context.FGenericCrashContext.RuntimeProperties.ErrorMessage}
         }
     }
-    Get-D4RGameSummary -Stdout $stdout -Stderr $stderr -Debugger $debugger -Preset $Preset `
+    $frontendLogPath=Join-Path $OutputDirectory 'OptiScaler.log'
+    $frontendLog=if (Test-Path -LiteralPath $frontendLogPath) { [IO.File]::ReadAllText($frontendLogPath) } else { '' }
+    Get-D4RGameSummary -Stdout $stdout -Stderr $stderr -Debugger $debugger -OptiScalerLog $frontendLog -Preset $Preset `
         -RunSeconds $timer.Elapsed.TotalSeconds -ValidateOutput ([bool]$ValidateOutput) -GameCrash $gameCrash |
         ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $OutputDirectory 'summary.json') -Encoding UTF8
     Compress-Archive -LiteralPath $OutputDirectory -DestinationPath ($OutputDirectory + '.zip') -Force

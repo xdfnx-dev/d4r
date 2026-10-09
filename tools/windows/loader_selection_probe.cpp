@@ -3,6 +3,8 @@
 #include <windows.h>
 #include <dxgi.h>
 #include <cstdio>
+#include <filesystem>
+#include <fstream>
 
 struct Info { unsigned SDKVersion, FeatureID; char reserved[48]; };
 struct Requirement { unsigned FeatureSupported, MinHWArchitecture; char MinOSVersion[255]; };
@@ -10,7 +12,14 @@ using Requirements = unsigned (*)(IDXGIAdapter*, const Info*, Requirement*);
 using Version = unsigned (*)();
 
 int wmain(int argc, wchar_t** argv) {
-    if (argc != 2) { std::printf("usage: loader_selection_probe LOADER_DLL\n"); return 2; }
+    if (argc != 2 && argc != 3) { std::printf("usage: loader_selection_probe LOADER_DLL [REPORT_FILE]\n"); return 2; }
+    // Player mode can redirect process stdout. Keep the verification result
+    // in an independent file so a game/DLL's stream ownership cannot hide it.
+    std::ofstream report;
+    if (argc == 3) {
+        report.open(std::filesystem::path(argv[2]));
+        if (!report) return 2;
+    }
     HMODULE loader = LoadLibraryW(argv[1]);
     if (!loader) { std::printf("LOAD_FAILED error=%lu\n", GetLastError()); return 2; }
     auto version = reinterpret_cast<Version>(reinterpret_cast<void*>(GetProcAddress(loader, "d4r_WindowsBackendVersion")));
@@ -26,6 +35,11 @@ int wmain(int argc, wchar_t** argv) {
         const unsigned status = requirements(adapter, &info, &result);
         std::printf("ADAPTER vendor=0x%04x status=0x%x supported=%u marker=0x%x name=%ls\n", desc.VendorId, status,
             result.FeatureSupported, result.MinHWArchitecture, desc.Description);
+        if (report.is_open()) {
+            report << "ADAPTER vendor=0x" << std::hex << desc.VendorId << " status=0x" << status
+                << std::dec << " supported=" << result.FeatureSupported << "\n";
+            report.flush();
+        }
         adapter->Release();
     }
     factory->Release();

@@ -153,16 +153,20 @@ try {
         $hits=@($summary.kernels | Where-Object { $_.backend -eq 'native' -and $_.launches -gt 0 } | ForEach-Object { $_.kernel })
         $status.missingNativeKernels=@($required | Where-Object { $hits -notcontains $_ })
         $status.translatedNativeKernels=@($summary.kernels | Where-Object { $_.backend -eq 'translated' -and $required -contains $_.kernel } | ForEach-Object { $_.kernel })
-        $passed=$summary.exitCode -eq '0x0' -and $summary.completedFrames -gt 0 -and $summary.nativeLaunches -gt 0 -and
+        $passed=!$summary.frontendProcessMismatch -and $summary.exitCode -eq '0x0' -and $summary.completedFrames -gt 0 -and $summary.nativeLaunches -gt 0 -and
             $summary.outputGpuChecks -gt 0 -and $summary.failures -eq 0 -and $summary.nonfiniteOutputs -eq 0 -and
             $summary.previousFrameOutputs -eq 0 -and $summary.cpuImageCopyFrames -eq 0 -and
             @($required).Count -eq $(if ($Preset -eq 11) { 11 } else { 5 }) -and
             $status.missingNativeKernels.Count -eq 0 -and $status.translatedNativeKernels.Count -eq 0
         $status.hardwareValidationCompleted=[bool]$passed
         $status.status=if ($passed) { 'backend-checks-passed-image-still-needs-user-review' }
+            elseif ($summary.frontendProcessMismatch) { 'inconclusive-different-game-process' }
             elseif ($summary.completedFrames -eq 0 -and $summary.exitCode -eq '0x0' -and $summary.failures -eq 0) { 'inconclusive-process-exited-without-dlss-frames' }
             else { 'backend-checks-failed-or-no-dlss-frames' }
         $status.session=$summary.session
+        if ($summary.frontendProcessMismatch) {
+            Write-Host 'OptiScaler logged a different game process. This launcher captured only its own process; a Steam/launcher relaunch may lose the runtime environment. Use the self-contained d4r.ini player build for normal Steam launches. Send the diagnostic ZIP.' -ForegroundColor Yellow
+        }
         if ($status.status -eq 'inconclusive-process-exited-without-dlss-frames') {
             Write-Host 'The launched process exited without a DLSS frame. A Steam/launcher restart is not tracked by this test. Keep Steam open and select the actual game executable. Send the ZIP if it restarts again.' -ForegroundColor Yellow
         }

@@ -3,9 +3,19 @@
 function Get-D4RGameSummary {
     param([AllowEmptyString()][string]$Stdout='', [AllowEmptyString()][string]$Stderr='',
         [AllowEmptyString()][string]$Debugger='', [int]$Preset=11, [double]$RunSeconds=0,
-        [bool]$ValidateOutput=$false, $GameCrash=$null)
+        [bool]$ValidateOutput=$false, $GameCrash=$null,
+        [AllowEmptyString()][string]$OptiScalerLog='')
     $gameExit=[regex]::Match($Debugger, 'EXIT code=0x([0-9a-f]+)')
     $exitCode=if ($gameExit.Success) { '0x'+$gameExit.Groups[1].Value } else { 'diagnostic_timeout' }
+    $launched=[regex]::Match($Debugger, '(?m)^LAUNCH pid=([0-9]+)\b')
+    $launchedProcessId=if ($launched.Success) { [UInt32]$launched.Groups[1].Value } else { $null }
+    # An external window's targetPid/inputPid is not the frontend process.
+    # Only the explicitly logged currentPid proves which process wrote the log.
+    $frontendProcessIds=@([regex]::Matches($OptiScalerLog,
+        'OptiInput::InstallHooks installing Win32 input hooks currentPid:([0-9]+)\b') |
+        ForEach-Object { [UInt32]$_.Groups[1].Value } | Select-Object -Unique)
+    $frontendProcessMismatch=$null -ne $launchedProcessId -and
+        @($frontendProcessIds | Where-Object { $_ -ne $launchedProcessId }).Count -gt 0
     $frames=[regex]::Matches($Stdout, '(?m)^D4R_FRAME cpu_frame_copies=([0-9]+) frame_age=([0-9]+) interop_ngx_ms=([0-9.]+)\r?$')
     $checks=[regex]::Matches($Stdout, '(?m)^D4R_OUTPUT_VALIDATION elements=([0-9]+) nan=([0-9]+) inf=([0-9]+) diagnostics_cpu_bytes=8\r?$')
     $launches=[regex]::Matches($Stderr, '\[d4r-launch\] kernel="([^"]+)" backend=(native|translated)')
@@ -14,13 +24,16 @@ function Get-D4RGameSummary {
     })
     $capabilities=@([regex]::Matches($Stdout, '(?m)^D4R_CAPABILITIES available=(-?[0-9]+) feature_init=(0x[0-9a-f]+) needs_driver=(-?[0-9]+)\r?$') |
         ForEach-Object { $_.Groups[2].Value } | Select-Object -Unique)
-    $session=if ($frames.Count) { 'completed-dlss-frames' }
+    $session=if ($frontendProcessMismatch) { 'different-game-process-in-frontend-log' }
+        elseif ($frames.Count) { 'completed-dlss-frames' }
         elseif ($capabilities -contains '0xbad00004') { 'ngx-feature-not-found' }
         elseif ($capabilities.Count -and $capabilities -ne '0x00000001') { 'ngx-capability-failure' }
         elseif ($exitCode -eq '0x0') { 'process-exited-without-dlss-frames' }
         elseif ($exitCode -eq 'diagnostic_timeout') { 'diagnostic-timeout-without-dlss-frames' }
         else { 'process-failed-before-dlss-frames' }
     return [ordered]@{exitCode=$exitCode; session=$session; featureInitResults=$capabilities;
+        launchedProcessId=$launchedProcessId; frontendProcessIds=$frontendProcessIds;
+        frontendProcessMismatch=[bool]$frontendProcessMismatch;
         runSeconds=$RunSeconds; preset=$Preset; gameCrash=$GameCrash;
         nativeLaunches=([regex]::Matches($Stderr, '\[d4r-launch\].*backend=native')).Count;
         completedFrames=$frames.Count; outputValidationRequested=$ValidateOutput;

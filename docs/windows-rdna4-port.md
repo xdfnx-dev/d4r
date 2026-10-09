@@ -19,6 +19,65 @@ explicit limits; the validated package keeps conservative arithmetic.
 
 ## Milestone and gates
 
+2026-10-09 community follow-up
+([comment 6079654637](https://github.com/countervolts/d4r/issues/10#issuecomment-6079654637)):
+the two new Assetto Corsa EVO reports now use package `52d9872` / binary
+`3d62b98`, the correct NVIDIA hashes, and HIP 7.17.26386 / gfx1201. The captured
+stdout reports support=0 for the physical adapter and support=4 for three
+nonmatching adapter LUIDs, with no recorded backend failures. Neither K nor M
+completes any DLSS/native/output-validation frames. OptiScaler.log still reports
+`support=false result=BAD00002` for the adapters; updating the shim alone did
+not resolve the game report.
+
+The K bundle contains logs from different processes: debugger.log launches PID
+18704, while OptiScaler's explicit `currentPid` is 11084. This is proven process
+identity mismatch, not proof of a GPU kernel failure. M has no frontend PID
+record, so its process identity remains unknown. A Steam/launcher relaunch
+losing the launcher's D4R environment is a likely explanation; the reports do
+not identify which relaunch API was called. Valve documents that
+[SteamAPI_RestartAppIfNecessary](https://partner.steamgames.com/doc/sdk/api#initialization_and_shutdown)
+can launch the game again through Steam.
+
+Local reproduction with the exact released OptiScaler DLL and gfx1201 shim:
+adapter discovery succeeds with `D4R_HIP_ROOT`, and returns `BAD00002` /
+`Set the absolute path in D4R_HIP_ROOT` when that variable is absent. This
+reproduces the symptom without changing virtual display drivers or running a
+game. The maintainer's unchanged player-mode code at `fc98ee6` passes the new
+`test-player-feature-discovery.ps1` gate with all D4R/ZLUDA/HIP launch variables
+removed: the loader returns success/supported on RX 9070 XT and
+success/AdapterUnsupported on WARP; OptiScaler also reports support=true,
+result=1. Verified under PowerShell 7 and Windows PowerShell 5. No GPU kernel,
+NGX feature, or Assetto Corsa EVO gameplay is exercised by this gate.
+
+Diagnostics now accept the current OptiScaler.log, record launcher/frontend
+PIDs, classify an explicit mismatch as `different-game-process-in-frontend-log`,
+and prevent the quick test from claiming hardware validation for that bundle.
+External-window targetPid/inputPid values are deliberately not treated as the
+frontend process identity. Parser regression: 9/9 cases pass under both
+PowerShell hosts. Existing CTest Windows/HIP/CUDA/interop gates: 20/20 pass.
+The loader probe can write an independent adapter report:
+player-mode stream redirection must not erase the verification results.
+
+Run the player discovery regression with the local, user-supplied NVIDIA DLLs:
+
+```powershell
+./scripts/windows/test-player-feature-discovery.ps1 `
+  -GamePackageRoot ./dist/windows-issue10-game-gfx1201 `
+  -ShimDll ./build/upstream-windows-validation-fc98ee6/d4r_nvngx.dll `
+  -LoaderDll ./build/upstream-windows-validation-fc98ee6/d4r_nvngx_loader.dll `
+  -OptiScalerDll ./dist/optiscaler-windows-d4r/OptiScaler.dll `
+  -NgxCore ./_nvngx.dll -DlssDll ./nvngx_dlss.dll `
+  -OutputDirectory ./build/issue-10-20261009/player-discovery
+```
+
+The fixture uses hard links where possible, cleans its private NVIDIA/runtime
+staging directory, and retains only logs/results. Local evidence is in
+`build/issue-10-20261009/`. The existing public quick-test ZIP is still the older
+launcher-dependent package; no new release or game compatibility claim is made
+by this investigation. Maintainer sources are unchanged, and no branch is
+pushed by this step. Next game check needs the self-contained player layout
+through the normal Steam launch, rather than another test of the same old ZIP.
+
 2026-10-08 community report
 ([comment 6046048139](https://github.com/countervolts/d4r/issues/10#issuecomment-6046048139)):
 both Assetto Corsa EVO K/M logs discover RX 9070 XT / gfx1201 through HIP and
